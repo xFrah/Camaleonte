@@ -101,12 +101,15 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
     if (playerNames.length < 3) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Need at least 3 players!'),
+          content: Text('Servono almeno 3 giocatori!'),
           backgroundColor: Colors.red,
         ),
       );
       return;
     }
+
+    // Unfocus any active text field to prevent keyboard from popping up when returning
+    FocusScope.of(context).unfocus();
 
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -137,9 +140,9 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
                       ),
                     ),
                     const Padding(
-                      padding: EdgeInsets.all(0.0),
+                      padding: EdgeInsets.only(bottom: 15.0),
                       child: Text(
-                        'Enter Player Names:',
+                          'Inserisci i nomi dei giocatori:',
                         style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                       ),
                     ),
@@ -159,18 +162,18 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
                   });
                 },
                 footer: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  padding: const EdgeInsets.symmetric(vertical: 8.0),
                   child: Row(
                     children: [
                       // Invisible spacer to match the drag handle width + padding
-                      const SizedBox(width: 40), 
+                      const SizedBox(width: 56), 
                       Expanded(
                         child: TextField(
                           controller: _footerController,
                           focusNode: _footerFocusNode,
                           scrollPadding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + 40),
                           decoration: const InputDecoration(
-                            hintText: 'Add another player...',
+                            hintText: 'Aggiungi un altro giocatore...',
                             border: OutlineInputBorder(),
                             prefixIcon: Icon(Icons.add),
                           ),
@@ -183,21 +186,22 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
                         ),
                       ),
                       // Invisible spacer to match the close button width + padding
-                      const SizedBox(width: 48),
+                      const SizedBox(width: 56),
                     ],
                   ),
                 ),
                 itemBuilder: (context, index) {
                   return Padding(
                     key: ObjectKey(_playerControllers[index]),
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                    padding: const EdgeInsets.symmetric(vertical: 8.0),
                     child: Row(
                       children: [
                         ReorderableDragStartListener(
                           index: index,
-                          child: const SizedBox(
-                            width: 40, // Fixed width for drag handle area
-                            child: Icon(Icons.drag_handle),
+                          child: Container(
+                            width: 56, // Fixed width for drag handle area
+                            alignment: Alignment.center,
+                            child: const Icon(Icons.drag_handle),
                           ),
                         ),
                         Expanded(
@@ -205,13 +209,14 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
                             controller: _playerControllers[index],
                             scrollPadding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + 40),
                             decoration: InputDecoration(
-                              hintText: 'Player ${index + 1}',
+                              hintText: 'Giocatore ${index + 1}',
                               border: const OutlineInputBorder(),
                             ),
                           ),
                         ),
-                        SizedBox(
-                          width: 48, // Fixed width for close button area
+                        Container(
+                          width: 56, // Fixed width for close button area
+                          alignment: Alignment.center,
                           child: IconButton(
                             icon: const Icon(Icons.close, color: Colors.red),
                             onPressed: () => _removePlayer(index),
@@ -226,18 +231,21 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
             Container(
               padding: const EdgeInsets.all(16.0),
               color: Colors.transparent,
-              child: ElevatedButton(
-                onPressed: _startGame,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+              child: SizedBox(
+                width: MediaQuery.of(context).size.width * 0.9,
+                child: ElevatedButton(
+                  onPressed: _startGame,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                    textStyle: const TextStyle(fontSize: 20, inherit: false),
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-                  textStyle: const TextStyle(fontSize: 20, inherit: false),
+                  child: const Text('INIZIA'),
                 ),
-                child: const Text('START'),
               ),
             ),
           ],
@@ -325,14 +333,18 @@ class _GameScreenState extends State<GameScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-              const Text(
-                'All players have seen their coordinates.',
-                style: TextStyle(fontSize: 18),
-                textAlign: TextAlign.center,
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: MediaQuery.of(context).size.width * 0.1),
+                child: const Text(
+                  'Tutti i giocatori hanno visto le loro coordinate.',
+                  style: TextStyle(fontSize: 18),
+                  textAlign: TextAlign.center,
+                  softWrap: true,
+                ),
               ),
               const SizedBox(height: 20),
               const Text(
-                'Start the round!',
+                'Inizia il round!',
                 style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 40),
@@ -349,7 +361,7 @@ class _GameScreenState extends State<GameScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
                   textStyle: const TextStyle(fontSize: 20, inherit: false),
                 ),
-                child: const Text('Back to Menu'),
+                child: const Text('Torna al Menu'),
               ),
             ],
           ),
@@ -381,7 +393,7 @@ class _GameScreenState extends State<GameScreen> {
               ),
               const SizedBox(height: 10),
               const Text(
-                'Pass the device to this player.',
+                'Passa il dispositivo a questo giocatore.',
                 style: TextStyle(color: Colors.grey, fontSize: 18),
               ),
               const SizedBox(height: 50),
@@ -419,7 +431,7 @@ class _GameScreenState extends State<GameScreen> {
                             ),
                           )
                         : const Text(
-                            'HOLD TO\nREVEAL',
+                            'TIENI PREMUTO\nPER RIVELARE',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 24,
@@ -450,7 +462,7 @@ class _GameScreenState extends State<GameScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
                         ),
                         child: const Text(
-                          'Previous',
+                          'Indietro',
                           style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                         ),
                       ),
@@ -467,8 +479,8 @@ class _GameScreenState extends State<GameScreen> {
                     ),
                     child: Text(
                       _currentPlayerIndex < widget.playerNames.length - 1
-                          ? 'Next Player'
-                          : 'Finish Setup',
+                          ? 'Prossimo'
+                          : 'Fine',
                       style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                     ),
                   ),
