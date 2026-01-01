@@ -118,31 +118,36 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       body: SafeArea(
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 0.0),
-              child: SizedBox(
-                width: MediaQuery.of(context).size.width * 0.5,
-                child: Image.asset(
-                  'assets/images/chameleon.png',
-                  fit: BoxFit.contain,
-                ),
-              ),
-            ),
-            const Padding(
-              padding: EdgeInsets.all(0.0),
-              child: Text(
-                'Enter Player Names:',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-            ),
             Expanded(
               child: ReorderableListView.builder(
+                header: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 0.0),
+                      child: SizedBox(
+                        width: MediaQuery.of(context).size.width * 0.5,
+                        child: Image.asset(
+                          'assets/images/chameleon.png',
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.all(0.0),
+                      child: Text(
+                        'Enter Player Names:',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
                 scrollController: _scrollController,
                 buildDefaultDragHandles: false,
-                padding: const EdgeInsets.only(bottom: 20),
+                padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + 20),
                 itemCount: _playerControllers.length,
                 onReorder: (oldIndex, newIndex) {
                   setState(() {
@@ -163,6 +168,7 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
                         child: TextField(
                           controller: _footerController,
                           focusNode: _footerFocusNode,
+                          scrollPadding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + 40),
                           decoration: const InputDecoration(
                             hintText: 'Add another player...',
                             border: OutlineInputBorder(),
@@ -197,6 +203,7 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
                         Expanded(
                           child: TextField(
                             controller: _playerControllers[index],
+                            scrollPadding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + 40),
                             decoration: InputDecoration(
                               hintText: 'Player ${index + 1}',
                               border: const OutlineInputBorder(),
@@ -313,11 +320,11 @@ class _GameScreenState extends State<GameScreen> {
   Widget build(BuildContext context) {
     if (_gameStarted) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Game Started')),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
+        body: SafeArea(
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
               const Text(
                 'All players have seen their coordinates.',
                 style: TextStyle(fontSize: 18),
@@ -347,8 +354,9 @@ class _GameScreenState extends State<GameScreen> {
             ],
           ),
         ),
-      );
-    }
+      ),
+    );
+  }
 
     return Scaffold(
       body: SafeArea(
