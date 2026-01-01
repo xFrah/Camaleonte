@@ -35,6 +35,7 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
     TextEditingController(),
     TextEditingController(),
   ];
+  final List<FocusNode> _playerFocusNodes = [];
 
   final TextEditingController _footerController = TextEditingController();
   final FocusNode _footerFocusNode = FocusNode();
@@ -43,6 +44,10 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
   @override
   void initState() {
     super.initState();
+    // Initialize focus nodes for initial controllers
+    for (var i = 0; i < _playerControllers.length; i++) {
+      _playerFocusNodes.add(FocusNode());
+    }
     _footerFocusNode.addListener(_onFooterFocusChange);
   }
 
@@ -50,6 +55,9 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
   void dispose() {
     for (var controller in _playerControllers) {
       controller.dispose();
+    }
+    for (var node in _playerFocusNodes) {
+      node.dispose();
     }
     _footerController.dispose();
     _footerFocusNode.dispose();
@@ -66,6 +74,7 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
   void _addNewPlayer(String name) {
     setState(() {
       _playerControllers.add(TextEditingController(text: name));
+      _playerFocusNodes.add(FocusNode());
       _footerController.clear();
     });
     // Keep focus on the new footer input? Or let it go? 
@@ -84,6 +93,8 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
     setState(() {
       _playerControllers[index].dispose();
       _playerControllers.removeAt(index);
+      _playerFocusNodes[index].dispose();
+      _playerFocusNodes.removeAt(index);
     });
   }
 
@@ -109,7 +120,18 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
     }
 
     // Unfocus any active text field to prevent keyboard from popping up when returning
-    FocusScope.of(context).unfocus();
+    for (var node in _playerFocusNodes) {
+      node.unfocus();
+    }
+    _footerFocusNode.unfocus();
+    FocusScope.of(context).unfocus(); // Double check global unfocus
+
+    // Reset cursor position to avoid selection state on return
+    // We use offset 0 instead of -1 to avoid potential RangeErrors
+    for (var controller in _playerControllers) {
+      controller.selection = const TextSelection.collapsed(offset: 0);
+    }
+    _footerController.selection = const TextSelection.collapsed(offset: 0);
 
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -159,6 +181,9 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
                     }
                     final item = _playerControllers.removeAt(oldIndex);
                     _playerControllers.insert(newIndex, item);
+                    
+                    final node = _playerFocusNodes.removeAt(oldIndex);
+                    _playerFocusNodes.insert(newIndex, node);
                   });
                 },
                 footer: Padding(
@@ -206,6 +231,7 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
                         ),
                         Expanded(
                           child: TextField(
+                            focusNode: _playerFocusNodes[index],
                             controller: _playerControllers[index],
                             scrollPadding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + 40),
                             decoration: InputDecoration(
