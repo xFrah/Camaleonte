@@ -29,12 +29,88 @@ class GameSetupScreen extends StatefulWidget {
 }
 
 class _GameSetupScreenState extends State<GameSetupScreen> {
-  int _numberOfPlayers = 3;
+  // Initialize with some empty controllers
+  final List<TextEditingController> _playerControllers = [
+    TextEditingController(),
+    TextEditingController(),
+    TextEditingController(),
+  ];
+
+  final TextEditingController _footerController = TextEditingController();
+  final FocusNode _footerFocusNode = FocusNode();
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _footerFocusNode.addListener(_onFooterFocusChange);
+  }
+
+  @override
+  void dispose() {
+    for (var controller in _playerControllers) {
+      controller.dispose();
+    }
+    _footerController.dispose();
+    _footerFocusNode.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onFooterFocusChange() {
+    if (!_footerFocusNode.hasFocus && _footerController.text.trim().isNotEmpty) {
+      _addNewPlayer(_footerController.text.trim());
+    }
+  }
+
+  void _addNewPlayer(String name) {
+    setState(() {
+      _playerControllers.add(TextEditingController(text: name));
+      _footerController.clear();
+    });
+    // Keep focus on the new footer input? Or let it go? 
+    // Usually "enter" -> add -> focus new line.
+    // "blur" -> add -> focus lost.
+    // If we want to type multiple names fast:
+    // User types "Name", hits enter -> Add, Focus footer again.
+    // User types "Name", taps away -> Add, Focus lost.
+    
+    // We'll handle the focus request in the onSubmitted callback specifically if needed,
+    // but the listener handles the logic. 
+    // If triggered by onSubmitted, we might want to refocus the footer.
+  }
+
+  void _removePlayer(int index) {
+    setState(() {
+      _playerControllers[index].dispose();
+      _playerControllers.removeAt(index);
+    });
+  }
 
   void _startGame() {
+    final playerNames = _playerControllers
+        .map((c) => c.text.trim())
+        .where((name) => name.isNotEmpty)
+        .toList();
+
+    // Check footer too
+    if (_footerController.text.trim().isNotEmpty) {
+      playerNames.add(_footerController.text.trim());
+    }
+
+    if (playerNames.length < 3) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Need at least 3 players!'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => GameScreen(numberOfPlayers: _numberOfPlayers),
+        builder: (context) => GameScreen(playerNames: playerNames),
       ),
     );
   }
@@ -42,69 +118,108 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('New Game'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-      ),
-      body: Center(
+      body: SafeArea(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text(
-              'Select Number of Players:',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 0.0),
+              child: SizedBox(
+                width: MediaQuery.of(context).size.width * 0.5,
+                child: Image.asset(
+                  'assets/images/chameleon.png',
+                  fit: BoxFit.contain,
+                ),
+              ),
             ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SizedBox(
-                  width: 60,
-                  height: 60,
-                  child: ElevatedButton(
-                    onPressed: _numberOfPlayers > 3
-                        ? () => setState(() => _numberOfPlayers--)
-                        : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      disabledBackgroundColor: Colors.green.withOpacity(0.5),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      padding: EdgeInsets.zero,
-                    ),
-                    child: const Icon(Icons.remove, color: Colors.white, size: 30),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Text(
-                    '$_numberOfPlayers',
-                    style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                SizedBox(
-                  width: 60,
-                  height: 60,
-                  child: ElevatedButton(
-                    onPressed: _numberOfPlayers < 10 // Max players limit
-                        ? () => setState(() => _numberOfPlayers++)
-                        : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      disabledBackgroundColor: Colors.green.withOpacity(0.5),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      padding: EdgeInsets.zero,
-                    ),
-                    child: const Icon(Icons.add, color: Colors.white, size: 30),
-                  ),
-                ),
-              ],
+            const Padding(
+              padding: EdgeInsets.all(0.0),
+              child: Text(
+                'Enter Player Names:',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
             ),
-            const SizedBox(height: 40),
-              ElevatedButton(
+            Expanded(
+              child: ReorderableListView.builder(
+                scrollController: _scrollController,
+                buildDefaultDragHandles: false,
+                padding: const EdgeInsets.only(bottom: 20),
+                itemCount: _playerControllers.length,
+                onReorder: (oldIndex, newIndex) {
+                  setState(() {
+                    if (oldIndex < newIndex) {
+                      newIndex -= 1;
+                    }
+                    final item = _playerControllers.removeAt(oldIndex);
+                    _playerControllers.insert(newIndex, item);
+                  });
+                },
+                footer: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  child: Row(
+                    children: [
+                      // Invisible spacer to match the drag handle width + padding
+                      const SizedBox(width: 40), 
+                      Expanded(
+                        child: TextField(
+                          controller: _footerController,
+                          focusNode: _footerFocusNode,
+                          decoration: const InputDecoration(
+                            hintText: 'Add another player...',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.add),
+                          ),
+                          onSubmitted: (value) {
+                            if (value.trim().isNotEmpty) {
+                              _addNewPlayer(value.trim());
+                              _footerFocusNode.requestFocus();
+                            }
+                          },
+                        ),
+                      ),
+                      // Invisible spacer to match the close button width + padding
+                      const SizedBox(width: 48),
+                    ],
+                  ),
+                ),
+                itemBuilder: (context, index) {
+                  return Padding(
+                    key: ObjectKey(_playerControllers[index]),
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                    child: Row(
+                      children: [
+                        ReorderableDragStartListener(
+                          index: index,
+                          child: const SizedBox(
+                            width: 40, // Fixed width for drag handle area
+                            child: Icon(Icons.drag_handle),
+                          ),
+                        ),
+                        Expanded(
+                          child: TextField(
+                            controller: _playerControllers[index],
+                            decoration: InputDecoration(
+                              hintText: 'Player ${index + 1}',
+                              border: const OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                        SizedBox(
+                          width: 48, // Fixed width for close button area
+                          child: IconButton(
+                            icon: const Icon(Icons.close, color: Colors.red),
+                            onPressed: () => _removePlayer(index),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.all(16.0),
+              color: Colors.transparent,
+              child: ElevatedButton(
                 onPressed: _startGame,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
@@ -117,6 +232,7 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
                 ),
                 child: const Text('START'),
               ),
+            ),
           ],
         ),
       ),
@@ -125,9 +241,9 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
 }
 
 class GameScreen extends StatefulWidget {
-  final int numberOfPlayers;
+  final List<String> playerNames;
 
-  const GameScreen({super.key, required this.numberOfPlayers});
+  const GameScreen({super.key, required this.playerNames});
 
   @override
   State<GameScreen> createState() => _GameScreenState();
@@ -168,11 +284,11 @@ class _GameScreenState extends State<GameScreen> {
       _impostorCoordinate = allCoordinates[random.nextInt(allCoordinates.length)];
     } while (_impostorCoordinate == _commonCoordinate);
 
-    _impostorIndex = random.nextInt(widget.numberOfPlayers);
+    _impostorIndex = random.nextInt(widget.playerNames.length);
   }
 
   void _nextPlayer() {
-    if (_currentPlayerIndex < widget.numberOfPlayers - 1) {
+    if (_currentPlayerIndex < widget.playerNames.length - 1) {
       setState(() {
         _currentPlayerIndex++;
         _isRevealing = false;
@@ -180,6 +296,15 @@ class _GameScreenState extends State<GameScreen> {
     } else {
       setState(() {
         _gameStarted = true;
+      });
+    }
+  }
+
+  void _previousPlayer() {
+    if (_currentPlayerIndex > 0) {
+      setState(() {
+        _currentPlayerIndex--;
+        _isRevealing = false;
       });
     }
   }
@@ -226,92 +351,126 @@ class _GameScreenState extends State<GameScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Pass and Play'),
-        automaticallyImplyLeading: false,
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+      body: SafeArea(
+        child: Stack(
           children: [
-            Text(
-              'Player ${_currentPlayerIndex + 1}',
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            Positioned(
+              top: 10,
+              left: 10,
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
             ),
-            const SizedBox(height: 10),
-            const Text(
-              'Pass the device to this player.',
-              style: TextStyle(color: Colors.grey),
-            ),
-            const SizedBox(height: 50),
-            
-            // Reveal Button Logic
-            GestureDetector(
-              onTapDown: (_) => setState(() => _isRevealing = true),
-              onTapUp: (_) => setState(() => _isRevealing = false),
-              onTapCancel: () => setState(() => _isRevealing = false),
-              child: Container(
-                width: 200,
-                height: 200,
-                decoration: BoxDecoration(
-                  color: _isRevealing ? Colors.white : Colors.green,
-                  border: Border.all(color: Colors.green, width: 4),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 10,
-                      offset: const Offset(0, 5),
-                    ),
-                  ],
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+              Text(
+                widget.playerNames[_currentPlayerIndex],
+                style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'Pass the device to this player.',
+                style: TextStyle(color: Colors.grey, fontSize: 18),
+              ),
+              const SizedBox(height: 50),
+              
+              // Reveal Button Logic
+              GestureDetector(
+                onTapDown: (_) => setState(() => _isRevealing = true),
+                onTapUp: (_) => setState(() => _isRevealing = false),
+                onTapCancel: () => setState(() => _isRevealing = false),
+                child: Container(
+                  width: 200,
+                  height: 200,
+                  decoration: BoxDecoration(
+                    color: _isRevealing ? Colors.white : Colors.green,
+                    border: Border.all(color: Colors.green, width: 4),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 10,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    child: _isRevealing
+                        ? Text(
+                            _currentPlayerIndex == _impostorIndex
+                                ? _impostorCoordinate
+                                : _commonCoordinate,
+                            style: const TextStyle(
+                              fontSize: 60,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          )
+                        : const Text(
+                            'HOLD TO\nREVEAL',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 24,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              ),
+                          ),
+                  ),
                 ),
-                child: Center(
-                  child: _isRevealing
-                      ? Text(
-                          _currentPlayerIndex == _impostorIndex
-                              ? _impostorCoordinate
-                              : _commonCoordinate,
-                          style: const TextStyle(
-                            fontSize: 60,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black,
+              ),
+              
+              const SizedBox(height: 50),
+              
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (_currentPlayerIndex > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 20),
+                      child: ElevatedButton(
+                        onPressed: _previousPlayer,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                        )
-                      : const Text(
-                          'HOLD TO\nREVEAL',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 24,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
                         ),
-                ),
+                        child: const Text(
+                          'Previous',
+                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  ElevatedButton(
+                    onPressed: _nextPlayer,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+                    ),
+                    child: Text(
+                      _currentPlayerIndex < widget.playerNames.length - 1
+                          ? 'Next Player'
+                          : 'Finish Setup',
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
               ),
-            ),
-            
-            const SizedBox(height: 50),
-            
-            ElevatedButton(
-              onPressed: _nextPlayer,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
-              ),
-              child: Text(
-                _currentPlayerIndex < widget.numberOfPlayers - 1
-                    ? 'Next Player'
-                    : 'Finish Setup',
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-    );
-  }
+      ]),
+    ),
+  );
+}
 }
